@@ -51,6 +51,27 @@ if [[ -d "/usr/lib/jvm/java-9-oracle-${ARCH_SUFFIX}" ]]; then
     ORACLEJDK9_JAVA_HOME="/usr/lib/jvm/java-9-oracle-${ARCH_SUFFIX}"
 fi
 
+ORACLEJDK10_UJA_ALIAS="java-10-oracle"
+ORACLEJDK10_JAVA_HOME="/usr/lib/jvm/java-10-oracle"
+if [[ -d "/usr/lib/jvm/java-10-oracle-${ARCH_SUFFIX}" ]]; then
+    ORACLEJDK10_UJA_ALIAS="java-10-oracle-${ARCH_SUFFIX}"
+    ORACLEJDK10_JAVA_HOME="/usr/lib/jvm/java-10-oracle-${ARCH_SUFFIX}"
+fi
+
+IBMJAVA8_UJA_ALIAS="java-8-ibm"
+IBMJAVA8_JAVA_HOME="/usr/lib/jvm/java-8-ibm"
+if [[ -d "/usr/lib/jvm/java-8-ibm-${ARCH_SUFFIX}" ]]; then
+    IBMJAVA8_UJA_ALIAS="java-8-ibm-${ARCH_SUFFIX}"
+    IBMJAVA8_JAVA_HOME="/usr/lib/jvm/java-8-ibm-${ARCH_SUFFIX}"
+fi
+
+OPENJDK8_OPENJ9_UJA_ALIAS="openjdk8-openj9"
+OPENJDK8_OPENJ9_JAVA_HOME="/usr/lib/jvm/openjdk8-openj9"
+if [[ -d "/usr/lib/jvm/openjdk8-openj9-${ARCH_SUFFIX}" ]]; then
+    OPENJDK8_OPENJ9_UJA_ALIAS="openjdk8-openj9-${ARCH_SUFFIX}"
+    OPENJDK8_OPENJ9_JAVA_HOME="/usr/lib/jvm/openjdk8-openj9-${ARCH_SUFFIX}"
+fi
+
 for config_file in /etc/default/jdk-switcher "${HOME}/.jdk_switcherrc" "${JDK_SWITCHER_CONFIG}"; do
     if [[ -f "${config_file}" ]]; then
         # shellcheck source=/dev/null
@@ -94,6 +115,77 @@ switch_to_oraclejdk9() {
     export JAVA_HOME="$ORACLEJDK9_JAVA_HOME"
 }
 
+switch_to_oraclejdk10() {
+    echo "Switching to Oracle JDK10 ($ORACLEJDK10_UJA_ALIAS), JAVA_HOME will be set to $ORACLEJDK10_JAVA_HOME"
+    sudo "${UJA}" --set "$ORACLEJDK10_UJA_ALIAS"
+    export JAVA_HOME="$ORACLEJDK10_JAVA_HOME"
+}
+
+switch_to_ibmjava8() {
+    echo "Switching to IBM JAVA8 ($IBMJAVA8_UJA_ALIAS), JAVA_HOME will be set to $IBMJAVA8_JAVA_HOME"
+    update_jdk_entries $IBMJAVA8_JAVA_HOME
+}
+
+switch_to_openjdk8_openj9() {
+    echo "Switching to OPENJDK8 OPENJ9 ($OPENJDK8_OPENJ9_UJA_ALIAS), JAVA_HOME will be set to $OPENJDK8_OPENJ9_JAVA_HOME"
+    update_jdk_entries $OPENJDK8_OPENJ9_JAVA_HOME
+}
+
+update_jdk_entries() {
+
+    java_home="$1"
+    jre=0
+    dir="$java_home/jre/bin"
+    if [ -d "$dir" ]; then
+        jre_entries=("$(ls "$dir")")
+        jre=1
+        update_alternatives "$dir" "jre_entries[@]"
+    fi
+
+    dir="$java_home/bin"
+    if [ -d "$dir" ]; then
+        jdk_entries=("$(ls "$dir")")
+
+        # If jre dir is present then remove duplicate binaries from bin dir
+        if [ $jre == 1 ]; then
+            unique_jdk_entries=()
+            for jdk_entry in "${jdk_entries[@]}"; do
+                found=0
+                for jre_entry in "${jre_entries[@]}"; do
+                    if [ "$jdk_entry" == "$jre_entry" ]; then
+                        found=1
+                        break
+                    fi
+                done
+                if [ $found == 0 ]; then
+                    # shellcheck disable=SC2034
+                    unique_jdk_entries[i]=$jdk_entry
+                    i=$((i + 1))
+                fi
+            done
+            update_alternatives "$dir" "unique_jdk_entries[@]"
+        else
+            update_alternatives "$dir" "jdk_entries[@]"
+        fi
+    fi
+    export JAVA_HOME="$java_home"
+}
+
+update_alternatives() {
+    dir="$1"
+    priority=1
+
+    binaries=("${!2}")
+    for binary in "${binaries[@]}"; do
+        path="$dir/$binary"
+        if [[ "$binary" == "classic" ]] || [[ "$binary" == "j9vm" ]]; then
+            continue
+        fi
+        sudo update-alternatives --quiet --install "/usr/bin/$binary" "$binary" "$path" "$priority"
+        sudo update-alternatives --quiet --set "$binary" "$path"
+    done
+}
+
 print_home_of_openjdk6() {
     echo "$OPENJDK6_JAVA_HOME"
 }
@@ -116,6 +208,18 @@ print_home_of_oraclejdk8() {
 
 print_home_of_oraclejdk9() {
     echo "$ORACLEJDK9_JAVA_HOME"
+}
+
+print_home_of_oraclejdk10() {
+    echo "$ORACLEJDK10_JAVA_HOME"
+}
+
+print_home_of_ibmjava8() {
+    echo "$IBMJAVA8_JAVA_HOME"
+}
+
+print_home_of_openjdk8_openj9() {
+    echo "$OPENJDK8_OPENJ9_JAVA_HOME"
 }
 
 warn_sunjdk6_eol() {
@@ -158,6 +262,15 @@ switch_jdk() {
         oraclejdk9 | oraclejdk1.9 | oraclejdk1.9.0 | oracle9 | oracle1.9.0 | oracle9.0)
             switch_to_oraclejdk9
             ;;
+        oraclejdk10 | oraclejdk1.10 | oraclejdk1.10.0 | oracle10 | oracle1.10.0 | oracle10.0)
+            switch_to_oraclejdk10
+            ;;
+        ibmjava8 | ibmjava1.8 | ibmjava1.8.0 | ibmjdk8 | ibmjdk1.8 | ibmjdk1.8.0 | ibm8 | ibm1.8.0 | ibm8.0)
+            switch_to_ibmjava8
+            ;;
+        openjdk8j9 | openjdk8openj9 | openjdk8withopenj9)
+            switch_to_openjdk8_openj9
+            ;;
         default)
             "switch_to_${JDK_SWITCHER_DEFAULT}"
             ;;
@@ -196,6 +309,15 @@ print_java_home() {
             ;;
         oraclejdk9 | oraclejdk1.9 | oraclejdk1.9.0 | oracle9 | oracle1.9.0 | oracle9.0)
             print_home_of_oraclejdk9
+            ;;
+        oraclejdk10 | oraclejdk1.10 | oraclejdk1.10.0 | oracle10 | oracle1.10.0 | oracle10.0)
+            print_home_of_oraclejdk10
+            ;;
+        ibmjava8 | ibmjava1.8 | ibmjava1.8.0 | ibmjdk8 | ibmjdk1.8 | ibmjdk1.8.0 | ibm8 | ibm1.8.0 | ibm8.0)
+            print_home_of_ibmjava8
+            ;;
+        openjdk8j9 | openjdk8openj9 | openjdk8withopenj9)
+            print_home_of_openjdk8_openj9
             ;;
         default)
             "print_home_of_${JDK_SWITCHER_DEFAULT}"

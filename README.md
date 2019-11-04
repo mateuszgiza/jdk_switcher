@@ -17,9 +17,11 @@ a command and the JDK to use:
 ``` bash
 . ./jdk_switcher.sh
 
+jdk_switcher home oraclejdk10
+
 jdk_switcher  use openjdk7
 
-jdk_switcher home oraclejdk7
+jdk_switcher home ibmjdk8
 ```
 
 ### Commands
@@ -31,17 +33,15 @@ jdk_switcher home oraclejdk7
 
 Supported aliases are:
 
+ * `oraclejdk10`
  * `oraclejdk8`
- * `oraclejdk7` or `jdk7` or `default`
+ * `oraclejdk7`
  * `openjdk7`
- * `openjdk6` or `jdk6`
-
-Sun JDK 6 will be EOL in November 2012 and is not supported. Ubuntu 12.04 and next Fedora release
-both will use OpenJDK 7 by default. Time to upgrade, JDK 7 is backwards compatible and packed with
-improvements.
+ * `openjdk6`
+ * `ibmjdk8`
 
 
-## How does it work?
+## How Does it Work?
 
 The switcher uses [update-java-alternatives](http://manpages.ubuntu.com/manpages/hardy/man8/update-java-alternatives.8.html) (see also [this intro](http://wiki.debian.org/Java/#Java_and_Debian)) under the hood to update `/etc/alternatives/*` symlinks for
 `java`, `javac`, `javap` and other JDK tools. As such, the switcher itself primary handles aliasing of
@@ -68,7 +68,7 @@ Maven always use OpenJDK 6.
 
 MIT LICENSE
 
-Copyright (c) 2012-2016 Michael S. Klishin and Travis CI Development Team
+Copyright (c) 2012-2019 Michael S. Klishin and Travis CI Development Team
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
